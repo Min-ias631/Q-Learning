@@ -19,6 +19,8 @@ class HFT_env(gym.Env):
         order_expire_steps: int = 100,
         decision_interval_ms: int = 2000,
         reward_clip: float = 10.0,
+        inventory_penalty_factor: float = 0.1,
+        blocked_action_penalty: float = 0.05,
     ):
         super().__init__()
 
@@ -31,6 +33,8 @@ class HFT_env(gym.Env):
         self.reward_scaling = reward_scaling
         self.order_expire_steps = order_expire_steps
         self.reward_clip = reward_clip
+        self.inventory_penalty_factor = inventory_penalty_factor
+        self.blocked_action_penalty = blocked_action_penalty
 
         self.decision_interval_ms = decision_interval_ms
         
@@ -244,12 +248,26 @@ class HFT_env(gym.Env):
         """
         if not self.action_space.contains(action):
             raise ValueError(f'Invalid Action {action} in HFT_env')
-        
+
         current_timestamp = self.depth_data[self.engine.idx, 0]
+
+        # Snapshot engine state before action to detect if it was blocked
+        prev_position = self.engine.position
+        prev_pending_count = len(self.engine.pending_orders)
+        prev_trades = self.engine.total_trades
 
         # Execute the action
         reward, done, current_mid, next_mid = self.engine.step(action)
-        
+
+        # An action is "blocked" if it was non-zero but changed nothing
+        # (e.g. sell at max short, buy with no cash, cancel with no orders)
+        action_executed = (
+            action == 0
+            or self.engine.total_trades != prev_trades
+            or len(self.engine.pending_orders) != prev_pending_count
+            or abs(self.engine.position - prev_position) > 1e-12
+        )
+
         cumulative_reward = reward
         steps_taken = 1
 
@@ -279,6 +297,16 @@ class HFT_env(gym.Env):
 
         # Clip reward to prevent extreme values
         cumulative_reward = np.clip(cumulative_reward, -self.reward_clip, self.reward_clip)
+
+        # Penalty 1: discourage actions that did nothing (blocked by position/cash limits)
+        # This separates Q(sell_when_blocked) from Q(sell_when_executes)
+        if not action_executed:
+            cumulative_reward -= self.blocked_action_penalty
+
+        # Penalty 2: inventory penalty — penalise holding large one-sided positions
+        # Prevents the agent earning "free" rewards by just sitting on a max short/long
+        norm_position = self.engine.position / self.max_position  # in [-1, 1]
+        cumulative_reward -= self.inventory_penalty_factor * (norm_position ** 2)
 
         # Update episode tracking
         self.episode_step += 1
