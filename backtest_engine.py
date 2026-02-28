@@ -226,31 +226,55 @@ class BacktestEngine:
         if order.side == 1:  # BUY
             if self.position >= self.max_position:
                 return 0, 0.0
-            
+
+            # Close short position first (symmetric to SELL side's "close long first")
+            if self.position < 0:
+                closing_qty = min(abs(self.position), quantity)
+                close_short_cost = closing_qty * order.price * (self.transaction_cost_bps / 10_000.0)
+                self.realized_pnl += closing_qty * (self.entry_price - order.price) - close_short_cost
+                self.cash -= close_short_cost + closing_qty * order.price
+
+                filled_qty += closing_qty
+
+                if quantity <= abs(self.position):
+                    self.position += closing_qty
+                    if filled_qty < order.quantity - 1e-9:
+                        return 2, filled_qty
+                    return default_return, filled_qty
+
+                self.entry_price = 0.0
+                self.position += closing_qty
+                quantity -= closing_qty
+
+            # Check position limit for going long
+            if self.position + quantity > self.max_position:
+                quantity = self.max_position - self.position
+                default_return = 2
+
             # Check if we have enough cash
             total_cost = quantity * order.price * (1.0 + self.transaction_cost_bps / 10_000.0)
             available_cash = self.cash - self.min_cash_reserve
-            
+
             if total_cost > available_cash:
                 if available_cash > 0:
                     quantity = available_cash / (order.price * (1.0 + self.transaction_cost_bps / 10_000.0))
                     default_return = 2
                 else:
                     return default_return, filled_qty
-            
+
             if quantity <= 1e-9:
                 return default_return, filled_qty
-            
+
             trade_cost = quantity * order.price * (self.transaction_cost_bps / 10_000.0)
             self.cash -= quantity * order.price + trade_cost
 
-            # Update entry price with guard against division by zero
+            # Update entry price with weighted average
             new_position = self.position + quantity
             if new_position > 1e-9:
                 self.entry_price = (self.position * self.entry_price + quantity * order.price) / new_position
             else:
                 self.entry_price = order.price
-            
+
             self.position += quantity
             self.realized_pnl -= trade_cost
             self.total_trades += 1
