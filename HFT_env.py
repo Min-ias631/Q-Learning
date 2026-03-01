@@ -19,8 +19,8 @@ class HFT_env(gym.Env):
         order_expire_steps: int = 100,
         decision_interval_ms: int = 2000,
         reward_clip: float = 10.0,
-        inventory_penalty_factor: float = 0.005,
-        blocked_action_penalty: float = 0.05,
+        inventory_penalty_factor: float = 0.0,
+        blocked_action_penalty: float = 0.0,
     ):
         super().__init__()
 

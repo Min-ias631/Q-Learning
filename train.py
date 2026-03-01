@@ -240,8 +240,8 @@ def train_dqn(
     max_position: float = 3.0,
     reward_scaling: float = 1000.0,
     reward_clip: float = 10.0,
-    inventory_penalty_factor: float = 0.005,
-    blocked_action_penalty: float = 0.05,
+    inventory_penalty_factor: float = 0.0,
+    blocked_action_penalty: float = 0.0,
 
     # Agent parameters - FIXED HYPERPARAMETERS
     hidden_dim: int = 128,
@@ -465,8 +465,8 @@ if __name__ == '__main__':
         'max_position': 500.0,
         'reward_scaling': 5000.0,
         'reward_clip': 10.0,
-        'inventory_penalty_factor': 0.005,
-        'blocked_action_penalty': 0.05,
+        'inventory_penalty_factor': 0.0,
+        'blocked_action_penalty': 0.0,
         
         'hidden_dim': 128,
         'learning_rate': 5e-5,
