@@ -238,9 +238,11 @@ def train_dqn(
     feature_preset: str = 'live',
     initial_cash: float = 5.0,
     max_position: float = 3.0,
-    reward_scaling: float = 1000.0,  # INCREASED from 100
-    reward_clip: float = 10.0,  # NEW
-    
+    reward_scaling: float = 1000.0,
+    reward_clip: float = 10.0,
+    inventory_penalty_factor: float = 0.005,
+    blocked_action_penalty: float = 0.05,
+
     # Agent parameters - FIXED HYPERPARAMETERS
     hidden_dim: int = 128,
     learning_rate: float = 5e-5,  # REDUCED from 1e-3
@@ -300,6 +302,8 @@ def train_dqn(
         order_expire_steps=100,
         decision_interval_ms=decision_interval_ms,
         reward_clip=reward_clip,
+        inventory_penalty_factor=inventory_penalty_factor,
+        blocked_action_penalty=blocked_action_penalty,
     )
 
     logger.info(f"Observation space shape: {env.observation_space.shape}")
@@ -461,6 +465,8 @@ if __name__ == '__main__':
         'max_position': 500.0,
         'reward_scaling': 5000.0,
         'reward_clip': 10.0,
+        'inventory_penalty_factor': 0.000,
+        'blocked_action_penalty': 0.00,
         
         'hidden_dim': 128,
         'learning_rate': 5e-5,

@@ -446,26 +446,26 @@ Episodes:        {results['num_episodes']}
         print("\n" + "="*80)
 
 
-def main():
+def main(type):
     """Main evaluation function"""
     
     # Configuration (match your training config)
     INSTRUMENT = 'ETHBTC'
     
     config = {
-        'depth_data_path': f'data/{INSTRUMENT}-depth5-val.npy',
-        'trade_data_path': f'data/{INSTRUMENT}-trades-val.npy',
+        'depth_data_path': f'data/{INSTRUMENT}-depth5-{type}.npy',
+        'trade_data_path': f'data/{INSTRUMENT}-trades-{type}.npy',
         'normalization_stats_path': 'checkpoints/normalization_stats.npz',
-        'transaction_cost_bps': 5.0,
-        'max_position': 3.0,
-        'initial_cash': 5.0,
-        'reward_scaling': 500.0,
+        'transaction_cost_bps': 0.0,
+        'initial_cash': 1000.0,
+        'max_position': 500.0,
+        'reward_scaling': 5000.0,
         'decision_interval_ms': 10000,
         'feature_preset': 'live',
     }
     
     # Which model to evaluate
-    checkpoint_path = './checkpoints/best_model.pth'  # or 'final_model.pth'
+    checkpoint_path = './checkpoints/best_model.pth'
     
     if not Path(checkpoint_path).exists():
         print(f"Error: Checkpoint not found at {checkpoint_path}")
@@ -480,7 +480,7 @@ def main():
     # Run evaluation
     results, episodes, non_zero_actions = evaluator.evaluate(
         num_episodes=50,  # Test on 50 episodes
-        max_steps_per_episode=None  # Full episodes
+        max_steps_per_episode=5000  # Full episodes
     )
     
     # Print summary
@@ -497,4 +497,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main('val')
+    main('test')
