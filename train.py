@@ -1,3 +1,4 @@
+import random
 import numpy as np
 import torch
 import logging
@@ -9,6 +10,15 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from features import load_preset, get_enabled_features
+
+
+def set_seeds(seed: int):
+    """Set all random seeds for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
 
 from HFT_env import HFT_env
 from dqn_agent import DQNAgent
@@ -254,11 +264,17 @@ def train_dqn(
     train_freq: int = 2,
     warmup_steps: int = 1000,  # REDUCED from 5000
     
+    # Reproducibility
+    seed: int = 42,
+
     # Logging
     checkpoint_dir: str = './checkpoints',
     log_dir: str = './logs',
     device: Optional[str] = None,
 ):
+    set_seeds(seed)
+    logger.info(f'Random seed set to {seed}')
+
     if auto_calculate_episodes or num_episodes is None or max_steps_per_episode is None:
         optimal_config = calculate_optimal_episodes(depth_data_path, num_episodes)
         
@@ -306,6 +322,8 @@ def train_dqn(
         blocked_action_penalty=blocked_action_penalty,
     )
 
+    env.action_space.seed(seed)
+
     logger.info(f"Observation space shape: {env.observation_space.shape}")
     logger.info(f"Action space size: {env.action_space.n}")
     
@@ -336,7 +354,7 @@ def train_dqn(
     global_step = 0
 
     for episode in range(1, num_episodes + 1):
-        state, info = env.reset()
+        state, info = env.reset(seed=seed if episode == 1 else None)
         episode_reward = 0
         episode_steps = 0
         done = False
@@ -448,7 +466,8 @@ def train_dqn(
 if __name__ == '__main__':
     INSTRUMENT = 'ETHBTC'
     
-    config = {  
+    config = {
+        'seed': 42,
         'depth_data_path': f'data/{INSTRUMENT}-depth5-train.npy',
         'trade_data_path': f'data/{INSTRUMENT}-trades-train.npy',
         'auto_calculate_episodes': True,

@@ -4,6 +4,7 @@ Comprehensive Model Evaluation Script
 Tests trained DQN agent and generates performance metrics
 """
 
+import random
 import numpy as np
 import torch
 import json
@@ -45,6 +46,8 @@ class ModelEvaluator:
             reward_scaling=config['reward_scaling'],
             decision_interval_ms=config['decision_interval_ms'],
         )
+        self.env.action_space.seed(config.get('seed', 42))
+        self._first_episode = True
         
         # Create and load agent
         self.agent = DQNAgent(
@@ -57,7 +60,9 @@ class ModelEvaluator:
     
     def run_episode(self, max_steps=None, deterministic=True, episode_num=0):
         """Run single evaluation episode"""
-        obs, info = self.env.reset()
+        seed = self.config.get('seed', 42) if self._first_episode else None
+        self._first_episode = False
+        obs, info = self.env.reset(seed=seed)
         
         episode_data = {
             'rewards': [],
@@ -448,11 +453,19 @@ Episodes:        {results['num_episodes']}
 
 def main(type):
     """Main evaluation function"""
-    
+
+    SEED = 42
+    random.seed(SEED)
+    np.random.seed(SEED)
+    torch.manual_seed(SEED)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(SEED)
+
     # Configuration (match your training config)
     INSTRUMENT = 'ETHBTC'
     
     config = {
+        'seed': SEED,
         'depth_data_path': f'data/{INSTRUMENT}-depth5-{type}.npy',
         'trade_data_path': f'data/{INSTRUMENT}-trades-{type}.npy',
         'normalization_stats_path': 'checkpoints/normalization_stats.npz',
